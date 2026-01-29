@@ -1,0 +1,65 @@
+ # Entornos y secretos
+ .env
+ .env.*
+ .python-version
+ 
+ # macOS
+ .DS_Store
+ 
+ # IDE/Editor
+ .vscode/
+ .idea/
+ 
+ # Virtualenv
+ venv/
+ .venv/
+ env/
+ ENV/
+ 
+ # Cachés y compilados de Python
+ __pycache__/
+ *.py[cod]
+ *$py.class
+ 
+ # Builds y distribución
+ build/
+ dist/
+ downloads/
+ eggs/
+ .eggs/
+ parts/
+ sdist/
+ var/
+ wheels/
+ share/python-wheels/
+ *.egg-info/
+ .installed.cfg
+ *.egg
+ MANIFEST
+ 
+ # PyInstaller
+ *.spec
+ 
+ # Logs
+ *.log
+ logs/
+ 
+ # Cobertura y testing
+ .tox/
+ .nox/
+ .coverage
+ .coverage.*
+ coverage.xml
+ htmlcov/
+ .pytest_cache/
+ nosetests.xml
+ junit*.xml
+ 
+ # Tipado y linters
+ .mypy_cache/
+ .pylint.d/
+ .ruff_cache/
+ 
+ # Otros
+ *.db
+ *.sqlite
