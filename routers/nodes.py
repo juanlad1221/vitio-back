@@ -15,7 +15,7 @@ async def create_node(node_data: dict, current_user: dict = Depends(get_current_
     attributes = node_data.get("attributes", {})
     type_edge = node_data.get("typeEdge", "default")
     
-    # Verify project belongs to user
+    # Verify project belongs to user a do
     projects_collection = await get_projects_collection()
     project = await projects_collection.find_one({
         "id": project_id,
