@@ -7,14 +7,6 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()
 
-# Set environment variables explicitly if needed
-if not os.getenv("CLOUDINARY_CLOUD_NAME"):
-    os.environ["CLOUDINARY_CLOUD_NAME"] = "daako1jzi"
-if not os.getenv("CLOUDINARY_API_KEY"):
-    os.environ["CLOUDINARY_API_KEY"] = "853528968267547"
-if not os.getenv("CLOUDINARY_API_SECRET"):
-    os.environ["CLOUDINARY_API_SECRET"] = "3_nZ5PEJV9OWnNVm8ej5QoSzucg"
-
 from routers import auth, projects, nodes, media
 from config import settings
 from database import db_instance
