@@ -171,7 +171,7 @@ async def find_user(query):
                 "createdAt": row["created_at"].isoformat(),
                 "updatedAt": row["updated_at"].isoformat()
             }
-        print(f"❌ Project NOT found: {project_id}")
+        print(f"❌ Project NOT found...")
     return None
 
 async def find_users():
