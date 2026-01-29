@@ -63,3 +63,4 @@
  # Otros
  *.db
  *.sqlite
+ .env
