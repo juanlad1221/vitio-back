@@ -3,8 +3,7 @@ uvicorn[standard]
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
-pymongo
-motor
+asyncpg
 python-dotenv
 aiofiles
 email-validator
