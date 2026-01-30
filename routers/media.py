@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from typing import List, Optional
 from datetime import datetime
 import uuid
@@ -64,7 +64,8 @@ async def upload_media(
         "url": cloudinary_result["url"],
         "media_id": media_record["id"],
         "contentType": cloudinary_result.get("contentType", "application/octet-stream"),
-        "public_id": cloudinary_result.get("public_id"),
+        "title": title,
+        "description": description or "",
         "resource_type": cloudinary_result.get("resource_type"),
         "size": cloudinary_result.get("size", 0),
         "project_id": projectId
@@ -181,3 +182,29 @@ async def delete_media_endpoint(
         )
     
     return {"message": "Media deleted successfully"}
+
+@router.get("/videos", include_in_schema=False)
+async def list_user_media(
+    type: str = Query("all"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Lista archivos de media del usuario autenticado filtrados por tipo.
+    Tipos soportados: all, image, video
+    """
+    t = (type or "all").lower().strip()
+    if t == "all":
+        media_files = await db_find_media({"user_id": current_user["user_id"]})
+    elif t == "video":
+        media_files = await db_find_media({"user_id": current_user["user_id"], "type": "VIDEO"})
+    elif t == "image":
+        media_files = await db_find_media({"user_id": current_user["user_id"], "type": "IMAGE"})
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tipo inválido. Use: all, image, video"
+        )
+    return {
+        "message": "Media obtenida exitosamente",
+        "data": media_files
+    }
