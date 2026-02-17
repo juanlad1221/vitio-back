@@ -2,7 +2,8 @@ from database import (
     get_users_collection, get_projects_collection, 
     get_nodes_collection, get_edges_collection, get_media_collection,
     insert_project, find_project, find_user_projects, 
-    update_project, delete_project, find_project_nodes, find_edges
+    update_project, delete_project, find_project_nodes, find_edges,
+    insert_node, insert_edge
 )
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from datetime import datetime
@@ -48,14 +49,12 @@ async def create_project(
     title = project_data.get("title")
     description = project_data.get("description", "")
     
-    # Validar que el título sea proporcionado
     if not title or title.strip() == "":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El título es requerido"
         )
     
-    # Crear nuevo proyecto
     current_time = datetime.utcnow()
     project_id = str(uuid.uuid4())
     
@@ -63,18 +62,46 @@ async def create_project(
         "id": project_id,
         "title": title.strip(),
         "description": description.strip(),
-        "status": True,  # Status por defecto true
+        "status": True,
         "userId": current_user["user_id"],
         "createdAt": current_time,
         "updatedAt": current_time
     }
     
-    # Insertar en la base de datos
     result = await insert_project(new_project)
+    
+    start_node_id = str(uuid.uuid4())
+    end_node_id = str(uuid.uuid4())
+    
+    start_node = {
+        "id": start_node_id,
+        "type": "start",
+        "position": {"x": 0, "y": 40},
+        "data": {},
+        "nodeOrder": 1,
+        "projectId": project_id,
+        "createdAt": current_time,
+        "updatedAt": current_time
+    }
+    
+    end_node = {
+        "id": end_node_id,
+        "type": "end",
+        "position": {"x": 800, "y": 40},
+        "data": {},
+        "nodeOrder": 2,
+        "projectId": project_id,
+        "createdAt": current_time,
+        "updatedAt": current_time
+    }
+    
+    await insert_node(start_node)
+    await insert_node(end_node)
     
     return {
         "message": "Proyecto creado exitosamente",
-        "data": new_project
+        "data": new_project,
+        "nodes": [start_node, end_node]
     }
 
 @router.get(

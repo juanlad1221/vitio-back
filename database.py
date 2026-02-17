@@ -63,6 +63,14 @@ class PostgreSQLDatabase:
             except Exception as e:
                 print(f"ℹ️ Status column already exists or error: {e}")
             
+            try:
+                await conn.execute("""
+                    ALTER TABLE nodes ADD COLUMN IF NOT EXISTS node_order INTEGER
+                """)
+                print("✅ Added node_order column to nodes table")
+            except Exception as e:
+                print(f"ℹ️ node_order column already exists or error: {e}")
+            
             # Nodes table
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS nodes (
@@ -70,6 +78,7 @@ class PostgreSQLDatabase:
                     type TEXT NOT NULL,
                     position JSONB NOT NULL,
                     data JSONB,
+                    node_order INTEGER,
                     project_id TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +111,7 @@ class PostgreSQLDatabase:
                     type TEXT NOT NULL,
                     ext TEXT,
                     url TEXT NOT NULL,
+                    bucket_id TEXT,
                     status TEXT DEFAULT 'active',
                     project_id TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -119,6 +129,14 @@ class PostgreSQLDatabase:
                 """)
             except Exception as e:
                 pass # Column likely exists
+            # Add bucket_id column migration
+            try:
+                await conn.execute("""
+                    ALTER TABLE media
+                    ADD COLUMN IF NOT EXISTS bucket_id TEXT
+                """)
+            except Exception:
+                pass
             
             print("📋 Database tables verified/created")
 
@@ -283,17 +301,17 @@ async def delete_project(project_id):
 async def insert_node(node_data):
     async with db_instance.pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO nodes (id, type, position, data, project_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO nodes (id, type, position, data, node_order, project_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         """, node_data["id"], node_data["type"], json.dumps(node_data["position"]),
-             json.dumps(node_data.get("data", {})), node_data["projectId"],
-             datetime.utcnow(), datetime.utcnow())
+             json.dumps(node_data.get("data", {})), node_data.get("nodeOrder"),
+             node_data["projectId"], datetime.utcnow(), datetime.utcnow())
     return {"inserted_id": node_data["id"]}
 
 async def find_node(node_id):
     async with db_instance.pool.acquire() as conn:
         row = await conn.fetchrow("""
-            SELECT id, type, position, data, project_id, created_at, updated_at
+            SELECT id, type, position, data, node_order, project_id, created_at, updated_at
             FROM nodes WHERE id = $1
         """, node_id)
         
@@ -303,6 +321,7 @@ async def find_node(node_id):
                 "type": row["type"],
                 "position": row["position"],
                 "data": row["data"],
+                "nodeOrder": row["node_order"],
                 "projectId": row["project_id"],
                 "createdAt": row["created_at"].isoformat(),
                 "updatedAt": row["updated_at"].isoformat()
@@ -312,8 +331,8 @@ async def find_node(node_id):
 async def find_project_nodes(project_id):
     async with db_instance.pool.acquire() as conn:
         rows = await conn.fetch("""
-            SELECT id, type, position, data, project_id, created_at, updated_at
-            FROM nodes WHERE project_id = $1 ORDER BY created_at ASC
+            SELECT id, type, position, data, node_order, project_id, created_at, updated_at
+            FROM nodes WHERE project_id = $1 ORDER BY node_order ASC, created_at ASC
         """, project_id)
         
         return [{
@@ -321,6 +340,7 @@ async def find_project_nodes(project_id):
             "type": row["type"],
             "position": row["position"],
             "data": row["data"],
+            "nodeOrder": row["node_order"],
             "projectId": row["project_id"],
             "createdAt": row["created_at"].isoformat(),
             "updatedAt": row["updated_at"].isoformat()
@@ -356,11 +376,11 @@ async def find_edges(project_id):
 async def insert_media(media_data):
     async with db_instance.pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO media (id, user_id, title, description, size, type, ext, url, created_at, updated_at, project_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            INSERT INTO media (id, user_id, title, description, size, type, ext, url, bucket_id, created_at, updated_at, project_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         """, media_data["id"], media_data["user_id"], media_data["title"],
              media_data.get("description", ""), media_data.get("size", 0),
-             media_data["type"], media_data.get("ext", ""), media_data["url"],
+             media_data["type"], media_data.get("ext", ""), media_data["url"], media_data.get("bucket_id"),
              datetime.utcnow(), datetime.utcnow(), media_data.get("project_id"))
     return {"inserted_id": media_data["id"]}
 
@@ -389,13 +409,13 @@ async def find_media(query=None):
         
         async with db_instance.pool.acquire() as conn:
             rows = await conn.fetch(f"""
-                SELECT id, user_id, title, description, size, type, ext, url, status, created_at, updated_at, project_id
+                SELECT id, user_id, title, description, size, type, ext, url, bucket_id, status, created_at, updated_at, project_id
                 FROM media {where_clause} ORDER BY created_at DESC
             """, *params)
     else:
         async with db_instance.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT id, user_id, title, description, size, type, ext, url, status, created_at, updated_at, project_id
+                SELECT id, user_id, title, description, size, type, ext, url, bucket_id, status, created_at, updated_at, project_id
                 FROM media ORDER BY created_at DESC
             """)
     
@@ -408,6 +428,7 @@ async def find_media(query=None):
         "type": row["type"],
         "ext": row["ext"],
         "url": row["url"],
+        "bucket_id": row["bucket_id"],
         "status": row["status"],
         "project_id": row["project_id"],
         "createdAt": row["created_at"].isoformat(),
@@ -420,7 +441,7 @@ async def update_media(media_id, update_data):
     param_idx = 1
     
     for key, value in update_data.items():
-        if key in ["title", "description", "type", "status"]:
+        if key in ["title", "description", "type", "status", "ext", "url", "size", "bucket_id"]:
             set_clauses.append(f"{key} = ${param_idx}")
             params.append(value)
             param_idx += 1
@@ -437,7 +458,7 @@ async def update_media(media_id, update_data):
             UPDATE media 
             SET {', '.join(set_clauses)}
             WHERE id = ${param_idx + 1}
-            RETURNING id, user_id, title, description, size, type, ext, url, status, created_at, updated_at
+            RETURNING id, user_id, title, description, size, type, ext, url, bucket_id, status, created_at, updated_at
         """, *params)
         
         if result:
@@ -450,6 +471,7 @@ async def update_media(media_id, update_data):
                 "type": result["type"],
                 "ext": result["ext"],
                 "url": result["url"],
+                "bucket_id": result["bucket_id"],
                 "status": result["status"],
                 "createdAt": result["created_at"].isoformat(),
                 "updatedAt": result["updated_at"].isoformat()

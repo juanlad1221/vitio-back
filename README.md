@@ -5,7 +5,6 @@ Backend FastAPI para alimentar una aplicación React similar a VideoAsk, basado 
 ## 🚀 Características
 
 - 🚀 **FastAPI** - Framework web moderno y rápido
-- 🗄️ **MongoDB** - Base de datos NoSQL para almacenar datos
 - 🔐 **JWT Authentication** - Autenticación segura con tokens
 - ☁️ **Cloudinary Storage** - Almacenamiento en la nube para archivos multimedia
 - 🎬 **Video Flow** - Sistema de nodos y aristas para crear flujos de video
