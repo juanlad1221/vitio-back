@@ -12,7 +12,16 @@ from database import (
 
 router = APIRouter(prefix="/api/node", tags=["Nodo"])
 
-@router.post("/", include_in_schema=False)
+@router.post(
+    "/",
+    response_model=dict,
+    summary="Crear un nuevo nodo",
+    description="Crea un nuevo nodo en un proyecto existente. Opcionalmente conecta el nuevo nodo a un nodo fuente mediante una arista.",
+    responses={
+        404: {"description": "Proyecto no encontrado"},
+        401: {"description": "No autorizado"}
+    }
+)
 async def create_node(node_data: dict, current_user: dict = Depends(get_current_user)):
     project_id = node_data.get("projectId")
     source_node_id = node_data.get("sourceNodeId")
@@ -67,7 +76,17 @@ async def create_node(node_data: dict, current_user: dict = Depends(get_current_
         "data": new_node
     }
 
-@router.get("/details", include_in_schema=False)
+@router.get(
+    "/details",
+    response_model=dict,
+    summary="Obtener detalles de un nodo",
+    description="Retorna los detalles de un nodo especifico por su ID.",
+    responses={
+        404: {"description": "Nodo no encontrado"},
+        403: {"description": "Acceso denegado"},
+        401: {"description": "No autorizado"}
+    }
+)
 async def get_node_details(id: str = Query(...), current_user: dict = Depends(get_current_user)):
     node = await find_node(id)
     
@@ -87,7 +106,18 @@ async def get_node_details(id: str = Query(...), current_user: dict = Depends(ge
     
     return node
 
-@router.patch("/{id}", include_in_schema=False)
+@router.patch(
+    "/{id}",
+    response_model=dict,
+    summary="Actualizar un nodo",
+    description="Actualiza los atributos de un nodo existente (type, position, data).",
+    responses={
+        404: {"description": "Nodo no encontrado"},
+        403: {"description": "Acceso denegado"},
+        400: {"description": "Solicitud invalida - debe proporcionar al menos un campo"},
+        401: {"description": "No autorizado"}
+    }
+)
 async def update_node(
     id: str,
     node_data: dict,
@@ -143,7 +173,17 @@ async def update_node(
     
     return {"message": "Nodo actualizado exitosamente"}
 
-@router.delete("/{id}", include_in_schema=False)
+@router.delete(
+    "/{id}",
+    response_model=dict,
+    summary="Eliminar un nodo",
+    description="Elimina un nodo y todas sus aristas asociadas (entrantes y salientes).",
+    responses={
+        404: {"description": "Nodo no encontrado"},
+        403: {"description": "Acceso denegado"},
+        401: {"description": "No autorizado"}
+    }
+)
 async def delete_node(id: str, current_user: dict = Depends(get_current_user)):
     node = await find_node(id)
     
@@ -167,7 +207,17 @@ async def delete_node(id: str, current_user: dict = Depends(get_current_user)):
     
     return {"message": "Nodo eliminado exitosamente"}
 
-@router.patch("/reset/position/{id}", include_in_schema=False)
+@router.patch(
+    "/reset/position/{id}",
+    response_model=dict,
+    summary="Resetear posicion de un nodo",
+    description="Resetea la posicion de un nodo a las coordenadas (0, 0).",
+    responses={
+        404: {"description": "Nodo no encontrado"},
+        403: {"description": "Acceso denegado"},
+        401: {"description": "No autorizado"}
+    }
+)
 async def reset_node_position(id: str, current_user: dict = Depends(get_current_user)):
     node = await find_node(id)
     
