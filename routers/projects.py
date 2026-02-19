@@ -98,10 +98,23 @@ async def create_project(
     await insert_node(start_node)
     await insert_node(end_node)
     
+    edge = {
+        "id": str(uuid.uuid4()),
+        "type": "default",
+        "source": start_node_id,
+        "target": end_node_id,
+        "projectId": project_id,
+        "createdAt": current_time,
+        "updatedAt": current_time
+    }
+    
+    await insert_edge(edge)
+    
     return {
         "message": "Proyecto creado exitosamente",
         "data": new_project,
-        "nodes": [start_node, end_node]
+        "nodes": [start_node, end_node],
+        "edges": [edge]
     }
 
 @router.get(

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from datetime import datetime
 import uuid
 import json
@@ -9,6 +9,7 @@ from database import (
     insert_edge, find_edges, find_project, 
     db_instance
 )
+from cloudinary_service import CloudinaryService
 
 router = APIRouter(prefix="/api/node", tags=["Nodo"])
 
@@ -22,13 +23,21 @@ router = APIRouter(prefix="/api/node", tags=["Nodo"])
         401: {"description": "No autorizado"}
     }
 )
-async def create_node(node_data: dict, current_user: dict = Depends(get_current_user)):
-    project_id = node_data.get("projectId")
-    source_node_id = node_data.get("sourceNodeId")
-    attributes = node_data.get("attributes", {})
-    type_edge = node_data.get("typeEdge", "default")
+async def create_node(
+    projectId: str = Form(...),
+    sourceNodeId: str = Form(None),
+    attributes: str = Form("{}"),
+    typeEdge: str = Form("default"),
+    file: UploadFile = File(None),
+    current_user: dict = Depends(get_current_user)
+):
+    import json
+    try:
+        attributes = json.loads(attributes) if isinstance(attributes, str) else attributes
+    except json.JSONDecodeError:
+        attributes = {}
     
-    project = await find_project(project_id)
+    project = await find_project(projectId)
     
     if not project or project["userId"] != current_user["user_id"]:
         raise HTTPException(
@@ -39,33 +48,63 @@ async def create_node(node_data: dict, current_user: dict = Depends(get_current_
     async with db_instance.pool.acquire() as conn:
         last_order_row = await conn.fetchrow("""
             SELECT MAX(node_order) as max_order FROM nodes WHERE project_id = $1
-        """, project_id)
+        """, projectId)
         next_order = (last_order_row["max_order"] or 0) + 1
     
     current_time = datetime.utcnow()
     node_id = str(uuid.uuid4())
     
+    file_data = None
+    if file and file.filename:
+        content_type = file.content_type or ""
+        if not content_type.startswith("image/") and not content_type.startswith("video/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se permiten archivos de imagen o video"
+            )
+        
+        upload_result = await CloudinaryService.upload_file(
+            file=file,
+            title=attributes.get("type", "node_media"),
+            media_type="VIDEO" if content_type.startswith("video/") else "IMAGE"
+        )
+        file_data = {
+            "url": upload_result["url"],
+            "public_id": upload_result["public_id"],
+            "resource_type": upload_result["resource_type"],
+            "format": upload_result["format"],
+            "size": upload_result["size"],
+            "contentType": upload_result["contentType"],
+            "width": upload_result.get("width"),
+            "height": upload_result.get("height"),
+            "duration": upload_result.get("duration")
+        }
+    
+    node_data = attributes.get("data", {})
+    if file_data:
+        node_data["media"] = file_data
+    
     new_node = {
         "id": node_id,
         "type": attributes.get("type", "default"),
         "position": attributes.get("position", {"x": 0, "y": 0}),
-        "data": attributes.get("data"),
+        "data": node_data,
         "nodeOrder": next_order,
-        "projectId": project_id,
+        "projectId": projectId,
         "createdAt": current_time,
         "updatedAt": current_time
     }
     
     await insert_node(new_node)
     
-    if source_node_id:
+    if sourceNodeId:
         edge_id = str(uuid.uuid4())
         new_edge = {
             "id": edge_id,
-            "type": type_edge,
-            "source": source_node_id,
+            "type": typeEdge,
+            "source": sourceNodeId,
             "target": node_id,
-            "projectId": project_id,
+            "projectId": projectId,
             "createdAt": current_time,
             "updatedAt": current_time
         }
