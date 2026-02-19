@@ -19,16 +19,36 @@ router = APIRouter(prefix="/api/node", tags=["Nodo"])
     summary="Crear un nuevo nodo",
     description="Crea un nuevo nodo en un proyecto existente. Opcionalmente conecta el nuevo nodo a un nodo fuente mediante una arista.",
     responses={
-        404: {"description": "Proyecto no encontrado"},
-        401: {"description": "No autorizado"}
+        404: {"description": "Proyecto o nodo fuente no encontrado"},
+        401: {"description": "No autorizado"},
+        400: {"description": "Tipo de archivo no válido"}
     }
 )
 async def create_node(
-    projectId: str = Form(...),
-    sourceNodeId: str = Form(None),
-    attributes: str = Form("{}"),
-    typeEdge: str = Form("default"),
-    file: UploadFile = File(None),
+    projectId: str = Form(
+        ..., 
+        description="ID del proyecto al que pertenece el nodo",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    ),
+    sourceNodeId: str = Form(
+        None, 
+        description="ID del nodo fuente al que se conectará el nuevo nodo (opcional)",
+        example="550e8400-e29b-41d4-a716-446655440001"
+    ),
+    attributes: str = Form(
+        default="{}", 
+        description="JSON string con los atributos del nodo: type (tipo de nodo), position (coordenadas x,y), data (datos adicionales del nodo)",
+        example='{"type": "video", "position": {"x": 100, "y": 200}, "data": {"title": "Mi nodo", "description": "Descripción del nodo"}}'
+    ),
+    typeEdge: str = Form(
+        default="default", 
+        description="Tipo de arista que conecta el nodo fuente con el nuevo nodo",
+        example="default"
+    ),
+    file: UploadFile = File(
+        None, 
+        description="Archivo de imagen o video opcional para el nodo (solo formatos image/* o video/*)"
+    ),
     current_user: dict = Depends(get_current_user)
 ):
     import json
